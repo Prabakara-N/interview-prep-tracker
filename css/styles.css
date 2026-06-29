@@ -1,0 +1,192 @@
+/* Custom styles layered on top of Tailwind utilities.
+   Uses @apply-free plain CSS so it works with the Tailwind Play CDN. */
+
+/* Hide scrollbars but keep scrolling (used on the tab bar on small screens). */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0.4rem;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 2px solid transparent;
+  color: rgb(100 116 139);
+  border-top-left-radius: 0.5rem;
+  border-top-right-radius: 0.5rem;
+  transition: color .15s, background-color .15s, border-color .15s;
+}
+.tab-btn:hover { background-color: rgb(241 245 249); }
+.dark .tab-btn { color: rgb(148 163 184); }
+.dark .tab-btn:hover { background-color: rgb(30 41 59); }
+
+.tab-btn.active {
+  color: rgb(79 70 229);
+  border-bottom-color: rgb(79 70 229);
+}
+.dark .tab-btn.active {
+  color: rgb(129 140 248);
+  border-bottom-color: rgb(129 140 248);
+}
+
+/* Cards */
+.card {
+  background-color: #fff;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+.dark .card { background-color: rgb(15 23 42); border-color: rgb(30 41 59); }
+
+.card-lg {
+  background-color: #fff;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+.dark .card-lg { background-color: rgb(15 23 42); border-color: rgb(30 41 59); }
+
+/* Form fields */
+.field { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.8rem; }
+.field > span { color: rgb(100 116 139); font-weight: 500; }
+.dark .field > span { color: rgb(148 163 184); }
+
+.field input, .field select {
+  border: 1px solid rgb(203 213 225);
+  background-color: #fff;
+  color: inherit;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.875rem;
+  outline: none;
+}
+.field input:focus, .field select:focus {
+  border-color: rgb(99 102 241);
+  box-shadow: 0 0 0 3px rgb(99 102 241 / 0.2);
+}
+.dark .field input, .dark .field select {
+  background-color: rgb(2 6 23);
+  border-color: rgb(51 65 85);
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: rgb(79 70 229);
+  color: #fff;
+  padding: 0.55rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color .15s;
+}
+.btn-primary:hover { background-color: rgb(67 56 202); }
+
+/* List rows */
+.row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0.5rem;
+}
+.dark .row { border-color: rgb(30 41 59); }
+/* Let the text column shrink and wrap long words / URLs instead of overflowing. */
+.row > div { min-width: 0; }
+.row .font-medium, .row .text-sm { overflow-wrap: anywhere; }
+.delete-btn { flex-shrink: 0; }
+
+.badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.5rem;
+  border-radius: 9999px;
+}
+.badge-easy   { background: rgb(220 252 231); color: rgb(22 101 52); }
+.badge-medium { background: rgb(254 249 195); color: rgb(133 77 14); }
+.badge-hard   { background: rgb(254 226 226); color: rgb(153 27 27); }
+.dark .badge-easy   { background: rgb(20 83 45 / .4); color: rgb(134 239 172); }
+.dark .badge-medium { background: rgb(113 63 18 / .4); color: rgb(253 224 71); }
+.dark .badge-hard   { background: rgb(127 29 29 / .4); color: rgb(252 165 165); }
+
+.delete-btn {
+  color: rgb(148 163 184);
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.35rem;
+}
+.delete-btn:hover { color: rgb(220 38 38); background: rgb(254 226 226); }
+.dark .delete-btn:hover { background: rgb(127 29 29 / .4); }
+
+/* Heatmap */
+.heatmap-grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 12px); gap: 3px; }
+.heatmap-cell { width: 12px; height: 12px; border-radius: 2px; background: rgb(226 232 240); }
+.dark .heatmap-cell { background: rgb(30 41 59); }
+.heatmap-cell.l1 { background: rgb(165 180 252); }
+.heatmap-cell.l2 { background: rgb(129 140 248); }
+.heatmap-cell.l3 { background: rgb(99 102 241); }
+.heatmap-cell.l4 { background: rgb(67 56 202); }
+.heatmap-cell.pad { opacity: 0.25; }
+
+.empty { color: rgb(148 163 184); font-size: 0.875rem; padding: 0.5rem 0; }
+
+/* Checklist */
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0.5rem;
+  transition: background-color .15s, border-color .15s;
+}
+.checklist-item:hover { background: rgb(248 250 252); }
+.dark .checklist-item { border-color: rgb(30 41 59); }
+.dark .checklist-item:hover { background: rgb(30 41 59 / .5); }
+
+.check-hit {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex: 1;
+  cursor: pointer;
+  min-width: 0;
+}
+
+/* hide the native checkbox; we drive a custom box */
+.checklist-item input[type="checkbox"] { position: absolute; opacity: 0; pointer-events: none; }
+
+.check-box {
+  width: 20px; height: 20px;
+  border: 2px solid rgb(203 213 225);
+  border-radius: 6px;
+  display: grid; place-items: center;
+  color: transparent;
+  flex-shrink: 0;
+  transition: background-color .15s, border-color .15s, color .15s;
+}
+.dark .check-box { border-color: rgb(71 85 105); }
+
+.checklist-item.checked .check-box {
+  background: rgb(16 185 129);
+  border-color: rgb(16 185 129);
+  color: #fff;
+}
+.check-label { flex: 1; font-size: 0.9rem; overflow-wrap: anywhere; }
+.checklist-item.checked .check-label {
+  text-decoration: line-through;
+  color: rgb(148 163 184);
+}
+
+/* Lucide icons inherit text color */
+[data-lucide], svg.lucide { vertical-align: middle; }
+
+/* Chart container: a FIXED height with position:relative is required so Chart.js
+   (responsive + maintainAspectRatio:false) has a bounded box to size into.
+   Without it the canvas resizes every frame and grows infinitely. */
+.chart-box { position: relative; height: 240px; width: 100%; }
+.chart-box > canvas { display: block; }

@@ -1,0 +1,9 @@
+# Local jsonbin credentials (never commit real keys)
+js/config.js
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en" class="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interview Prep Tracker</title>
+
+  <!-- Tailwind Play CDN -->
+  <script>
+    // Set theme before Tailwind paints to avoid a flash of the wrong theme.
+    (function () {
+      try {
+        var t = localStorage.getItem('ipt-theme');
+        if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc',
+              400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca',
+              800: '#3730a3', 900: '#312e81'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <!-- Lucide icons -->
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen transition-colors">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-30 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-2 min-w-0">
+        <i data-lucide="target" class="w-6 h-6 text-brand-500 shrink-0"></i>
+        <h1 class="text-base sm:text-lg font-semibold tracking-tight truncate">Interview Prep Tracker</h1>
+      </div>
+      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+        <span id="sync-status" class="text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">offline</span>
+        <button id="theme-toggle" title="Toggle theme"
+          class="h-9 w-9 grid place-items-center rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+          <i data-lucide="moon" class="w-5 h-5 dark:hidden"></i>
+          <i data-lucide="sun" class="w-5 h-5 hidden dark:inline"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <nav class="max-w-6xl mx-auto px-4 overflow-x-auto no-scrollbar">
+      <ul class="flex flex-nowrap gap-1 -mb-px text-sm font-medium whitespace-nowrap" id="tabs">
+        <li><button data-tab="dashboard" class="tab-btn"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard</button></li>
+        <li><button data-tab="sql" class="tab-btn"><i data-lucide="database" class="w-4 h-4"></i> SQL / Postgres</button></li>
+        <li><button data-tab="dsa" class="tab-btn"><i data-lucide="puzzle" class="w-4 h-4"></i> DSA</button></li>
+        <li><button data-tab="jobs" class="tab-btn"><i data-lucide="briefcase" class="w-4 h-4"></i> Jobs</button></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6">
+
+    <!-- Dashboard -->
+    <section data-panel="dashboard" class="space-y-6">
+      <!-- Streak + summary cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="card">
+          <i data-lucide="flame" class="w-7 h-7 text-orange-500"></i>
+          <div class="mt-1 text-2xl font-bold" id="stat-current-streak">0</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400">Current streak (days)</div>
+        </div>
+        <div class="card">
+          <i data-lucide="trophy" class="w-7 h-7 text-amber-500"></i>
+          <div class="mt-1 text-2xl font-bold" id="stat-longest-streak">0</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400">Longest streak</div>
+        </div>
+        <div class="card">
+          <i data-lucide="puzzle" class="w-7 h-7 text-brand-500"></i>
+          <div class="mt-1 text-2xl font-bold" id="stat-total-dsa">0</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400">DSA problems solved</div>
+        </div>
+        <div class="card">
+          <i data-lucide="briefcase" class="w-7 h-7 text-emerald-500"></i>
+          <div class="mt-1 text-2xl font-bold" id="stat-total-jobs">0</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400">Jobs applied</div>
+        </div>
+      </div>
+
+      <!-- Today's checklist -->
+      <div class="card-lg">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-semibold flex items-center gap-2">
+            <i data-lucide="list-checks" class="w-5 h-5 text-brand-500"></i>
+            Today's Checklist
+            <span id="checklist-date" class="text-xs font-normal text-slate-400"></span>
+          </h2>
+          <span id="checklist-progress" class="text-sm font-medium text-slate-500 dark:text-slate-400">0/0</span>
+        </div>
+        <div id="checklist-today" class="space-y-2"></div>
+        <form id="form-task" class="mt-4 flex gap-2">
+          <input type="text" name="label" placeholder="Add a daily task…"
+            class="flex-1 border border-slate-300 dark:border-slate-700 dark:bg-slate-950 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand-500" />
+          <button type="submit" class="btn-primary flex items-center gap-1">
+            <i data-lucide="plus" class="w-4 h-4"></i> Add
+          </button>
+        </form>
+      </div>
+
+      <!-- Activity heatmap -->
+      <div class="card-lg">
+        <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
+          <h2 class="font-semibold flex items-center gap-2">
+            <i data-lucide="calendar-days" class="w-5 h-5 text-brand-500"></i>
+            Activity <span id="heatmap-label" class="font-normal text-slate-400 text-sm"></span>
+          </h2>
+          <select id="heatmap-range"
+            class="text-xs border border-slate-300 dark:border-slate-700 dark:bg-slate-950 rounded-lg px-2 py-1.5 outline-none focus:border-brand-500 cursor-pointer">
+            <option value="7">Last 7 days</option>
+            <option value="15">Last 15 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="91">Last 3 months</option>
+            <option value="182" selected>Last 6 months</option>
+          </select>
+        </div>
+        <div id="heatmap" class="overflow-x-auto"></div>
+        <p class="text-xs text-slate-400 mt-2">Any logged activity or a checked task counts toward your streak. Sundays are rest days — they don't affect your streak.</p>
+      </div>
+
+      <!-- Daily progress: one graph per track (driven by the Activity range filter) -->
+      <div>
+        <h2 class="font-semibold mb-3 flex items-center gap-2">
+          <i data-lucide="trending-up" class="w-5 h-5 text-brand-500"></i>
+          Daily progress <span id="daily-range-label" class="text-xs font-normal text-slate-400"></span>
+        </h2>
+        <div class="grid sm:grid-cols-2 gap-4 sm:gap-6">
+          <div class="card-lg">
+            <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><i data-lucide="database" class="w-4 h-4 text-brand-500"></i> SQL study minutes / day</h3>
+            <div class="chart-box"><canvas id="chart-sql-daily"></canvas></div>
+          </div>
+          <div class="card-lg">
+            <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><i data-lucide="puzzle" class="w-4 h-4 text-emerald-500"></i> DSA problems solved / day</h3>
+            <div class="chart-box"><canvas id="chart-dsa-daily"></canvas></div>
+          </div>
+          <div class="card-lg">
+            <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><i data-lucide="briefcase" class="w-4 h-4 text-amber-500"></i> Jobs applied / day</h3>
+            <div class="chart-box"><canvas id="chart-jobs-daily"></canvas></div>
+          </div>
+          <div class="card-lg">
+            <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><i data-lucide="list-checks" class="w-4 h-4 text-pink-500"></i> Tasks completed / day</h3>
+            <div class="chart-box"><canvas id="chart-tasks-daily"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Breakdowns -->
+      <div>
+        <h2 class="font-semibold mb-3 flex items-center gap-2">
+          <i data-lucide="pie-chart" class="w-5 h-5 text-brand-500"></i> Breakdowns
+        </h2>
+        <div class="grid sm:grid-cols-2 gap-4 sm:gap-6">
+          <div class="card-lg">
+            <h3 class="text-sm font-medium mb-3">Job applications by status</h3>
+            <div class="chart-box"><canvas id="chart-jobs-status"></canvas></div>
+          </div>
+          <div class="card-lg">
+            <h3 class="text-sm font-medium mb-3">DSA by difficulty</h3>
+            <div class="chart-box"><canvas id="chart-difficulty"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SQL -->
+    <section data-panel="sql" class="hidden space-y-6">
+      <div class="card-lg">
+        <h2 class="font-semibold mb-4">Log SQL / Postgres study</h2>
+        <form id="form-sql" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <label class="field"><span>Date</span><input type="date" name="date" required></label>
+          <label class="field"><span>Topic</span><input type="text" name="topic" placeholder="Window functions, indexes…" required></label>
+          <label class="field"><span>Minutes</span><input type="number" name="minutes" min="0" step="5" placeholder="45"></label>
+          <label class="field sm:col-span-2 lg:col-span-4"><span>Notes</span><input type="text" name="notes" placeholder="What did you learn / struggle with?"></label>
+          <div class="sm:col-span-2 lg:col-span-4"><button type="submit" class="btn-primary">Add entry</button></div>
+        </form>
+      </div>
+      <div class="card-lg">
+        <h3 class="font-semibold mb-3">Entries</h3>
+        <div id="list-sql" class="space-y-2"></div>
+      </div>
+    </section>
+
+    <!-- DSA -->
+    <section data-panel="dsa" class="hidden space-y-6">
+      <div class="card-lg">
+        <h2 class="font-semibold mb-4">Log DSA practice</h2>
+        <form id="form-dsa" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <label class="field"><span>Date</span><input type="date" name="date" required></label>
+          <label class="field"><span>Problem</span><input type="text" name="problem" placeholder="Two Sum" required></label>
+          <label class="field"><span>Pattern / Topic</span><input type="text" name="topic" placeholder="Hashing, Two pointers…"></label>
+          <label class="field"><span>Difficulty</span>
+            <select name="difficulty">
+              <option value="Easy">Easy</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="Hard">Hard</option>
+            </select>
+          </label>
+          <label class="field"><span>Minutes</span><input type="number" name="minutes" min="0" step="5" placeholder="30"></label>
+          <label class="field sm:col-span-2 lg:col-span-3"><span>Notes / link</span><input type="text" name="notes" placeholder="LeetCode #1, approach…"></label>
+          <div class="sm:col-span-2 lg:col-span-4"><button type="submit" class="btn-primary">Add entry</button></div>
+        </form>
+      </div>
+      <div class="card-lg">
+        <h3 class="font-semibold mb-3">Entries</h3>
+        <div id="list-dsa" class="space-y-2"></div>
+      </div>
+    </section>
+
+    <!-- Jobs -->
+    <section data-panel="jobs" class="hidden space-y-6">
+      <div class="card-lg">
+        <h2 class="font-semibold mb-4">Log job application</h2>
+        <form id="form-jobs" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <label class="field"><span>Date</span><input type="date" name="date" required></label>
+          <label class="field"><span>Company</span><input type="text" name="company" placeholder="Acme Corp" required></label>
+          <label class="field"><span>Role</span><input type="text" name="role" placeholder="Backend Engineer" required></label>
+          <label class="field"><span>Status</span>
+            <select name="status">
+              <option>Applied</option>
+              <option>Online Assessment</option>
+              <option>Interview</option>
+              <option>Offer</option>
+              <option>Rejected</option>
+            </select>
+          </label>
+          <label class="field sm:col-span-2 lg:col-span-3"><span>Link / Notes</span><input type="text" name="notes" placeholder="JD link, referral, recruiter…"></label>
+          <label class="field"><span>Location</span><input type="text" name="location" placeholder="Remote"></label>
+          <div class="sm:col-span-2 lg:col-span-4"><button type="submit" class="btn-primary">Add application</button></div>
+        </form>
+      </div>
+      <div class="card-lg">
+        <h3 class="font-semibold mb-3">Applications</h3>
+        <div id="list-jobs" class="space-y-2"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="max-w-6xl mx-auto px-4 py-8 text-xs text-slate-400">
+    <div class="flex flex-wrap justify-center items-center gap-x-4 gap-y-2">
+      <button id="export-btn" class="inline-flex items-center gap-1 hover:text-brand-500"><i data-lucide="download" class="w-3.5 h-3.5"></i> Export JSON</button>
+      <button id="import-btn" class="inline-flex items-center gap-1 hover:text-brand-500"><i data-lucide="upload" class="w-3.5 h-3.5"></i> Import JSON</button>
+      <button id="sync-btn" class="inline-flex items-center gap-1 hover:text-brand-500"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Sync now</button>
+    </div>
+    <input type="file" id="import-file" accept="application/json" class="hidden" />
+  </footer>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-4 right-4 z-50 hidden px-4 py-2 rounded-lg shadow-lg text-sm text-white bg-slate-800"></div>
+
+  <!-- Scripts (order matters) -->
+  <script src="js/config.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/streak.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
