@@ -175,10 +175,15 @@
       window.UI.setSyncStatus('loading…', false);
       window.Storage.load().then(function (state) {
         window.AppState.set(state);
-        window.AppState.persist();
-        window.UI.setSyncStatus('synced ✓', true);
+        // Only claim "synced" if the cloud was actually reachable this load.
+        if (window.Storage.cloudActive()) {
+          window.AppState.persist();
+          window.UI.setSyncStatus('synced ✓', true);
+        } else {
+          window.UI.setSyncStatus('offline — retry sync', false);
+        }
       }).catch(function () {
-        window.UI.setSyncStatus('local only', false);
+        window.UI.setSyncStatus('offline — retry sync', false);
       });
     } else {
       window.UI.setSyncStatus('local only', false);

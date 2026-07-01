@@ -76,10 +76,15 @@ window.Storage = (function () {
       .catch(function (e) { console.warn('Cloud PUT failed', e); return false; });
   }
 
+  // Tracks whether the last cloud GET actually reached jsonbin (for honest status).
+  var _cloudActive = false;
+  function cloudActive() { return _cloudActive; }
+
   /* Load: merge local + cloud, newest meta.updatedAt wins. Returns a Promise<state>. */
   function load() {
     var local = readLocal();
     return cloudGet().then(function (cloud) {
+      _cloudActive = !!cloud;
       if (!cloud) return local || emptyState();
       if (!local) return cloud;
       var lu = (local.meta && local.meta.updatedAt) || 0;
@@ -97,6 +102,7 @@ window.Storage = (function () {
   return {
     emptyState: emptyState,
     isCloudEnabled: isCloudEnabled,
+    cloudActive: cloudActive,
     load: load,
     save: save,
     readLocal: readLocal,

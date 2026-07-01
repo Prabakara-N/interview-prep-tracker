@@ -1,5 +1,5 @@
-# Local jsonbin credentials (never commit real keys)
-js/config.js
+# NOTE: js/config.js is intentionally committed so the deployed site can sync.
+# It contains ONLY a scoped Access Key (this bin, read+write) — never the Master Key.
 
 # OS / editor cruft
 .DS_Store
