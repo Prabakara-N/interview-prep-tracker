@@ -3,7 +3,62 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Interview Prep Tracker</title>
+
+  <!-- Primary meta -->
+  <title>Interview Prep Tracker — Daily SQL, DSA &amp; Job Application Tracker</title>
+  <meta name="description" content="Track your daily interview prep in one place: SQL/Postgres study, DSA problems solved, and job applications. Build streaks, tick off a daily checklist, and watch your progress in graphs." />
+  <meta name="keywords" content="interview prep, DSA tracker, SQL practice, Postgres, LeetCode tracker, job application tracker, coding interview, study streak, habit tracker" />
+  <meta name="author" content="Prabakara-N" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://prabakara-n.github.io/interview-prep-tracker/" />
+
+  <!-- Theme color (adapts to light/dark) -->
+  <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="light dark" />
+
+  <!-- Icons -->
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="manifest" href="site.webmanifest" />
+  <meta name="apple-mobile-web-app-title" content="Prep Tracker" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Interview Prep Tracker" />
+  <meta property="og:url" content="https://prabakara-n.github.io/interview-prep-tracker/" />
+  <meta property="og:title" content="Interview Prep Tracker — Daily SQL, DSA &amp; Job Application Tracker" />
+  <meta property="og:description" content="Track your daily interview prep in one place: SQL/Postgres study, DSA problems solved, and job applications. Build streaks, tick off a daily checklist, and watch your progress in graphs." />
+  <meta property="og:image" content="https://prabakara-n.github.io/interview-prep-tracker/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Interview Prep Tracker — track SQL, DSA and job applications with streaks and graphs" />
+  <meta property="og:locale" content="en_US" />
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Interview Prep Tracker — Daily SQL, DSA &amp; Job Application Tracker" />
+  <meta name="twitter:description" content="Track daily interview prep: SQL/Postgres, DSA problems and job applications — with streaks, checklists and progress graphs." />
+  <meta name="twitter:image" content="https://prabakara-n.github.io/interview-prep-tracker/og-image.png" />
+  <meta name="twitter:image:alt" content="Interview Prep Tracker dashboard preview" />
+
+  <!-- Structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Interview Prep Tracker",
+    "url": "https://prabakara-n.github.io/interview-prep-tracker/",
+    "description": "Track daily interview prep across SQL/Postgres, DSA and job applications — with streaks, daily checklists and progress graphs.",
+    "applicationCategory": "EducationalApplication",
+    "operatingSystem": "Any",
+    "browserRequirements": "Requires JavaScript",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Person", "name": "Prabakara-N" }
+  }
+  </script>
 
   <!-- Tailwind Play CDN -->
   <script>
@@ -130,11 +185,11 @@
           </h2>
           <select id="heatmap-range"
             class="text-xs border border-slate-300 dark:border-slate-700 dark:bg-slate-950 rounded-lg px-2 py-1.5 outline-none focus:border-brand-500 cursor-pointer">
-            <option value="7">Last 7 days</option>
+            <option value="7" selected>Last 7 days</option>
             <option value="15">Last 15 days</option>
             <option value="30">Last 30 days</option>
             <option value="91">Last 3 months</option>
-            <option value="182" selected>Last 6 months</option>
+            <option value="182">Last 6 months</option>
           </select>
         </div>
         <div id="heatmap" class="overflow-x-auto"></div>
@@ -147,42 +202,19 @@
           <i data-lucide="trending-up" class="w-5 h-5 text-brand-500"></i>
           Daily progress <span id="daily-range-label" class="text-xs font-normal text-slate-400"></span>
         </h2>
-        <div class="grid sm:grid-cols-2 gap-4 sm:gap-6">
-          <div class="card-lg">
-            <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><i data-lucide="database" class="w-4 h-4 text-brand-500"></i> SQL study minutes / day</h3>
-            <div class="chart-box"><canvas id="chart-sql-daily"></canvas></div>
-          </div>
-          <div class="card-lg">
-            <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><i data-lucide="puzzle" class="w-4 h-4 text-emerald-500"></i> DSA problems solved / day</h3>
-            <div class="chart-box"><canvas id="chart-dsa-daily"></canvas></div>
-          </div>
-          <div class="card-lg">
-            <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><i data-lucide="briefcase" class="w-4 h-4 text-amber-500"></i> Jobs applied / day</h3>
-            <div class="chart-box"><canvas id="chart-jobs-daily"></canvas></div>
-          </div>
-          <div class="card-lg">
-            <h3 class="text-sm font-medium mb-3 flex items-center gap-2"><i data-lucide="list-checks" class="w-4 h-4 text-pink-500"></i> Tasks completed / day</h3>
-            <div class="chart-box"><canvas id="chart-tasks-daily"></canvas></div>
-          </div>
+        <!-- Overall: tasks completed per day -->
+        <div class="card-lg mb-4 sm:mb-6">
+          <h3 class="text-sm font-medium mb-3 flex items-center gap-2">
+            <i data-lucide="list-checks" class="w-4 h-4 text-pink-500"></i> Tasks completed / day
+            <span class="text-xs font-normal text-slate-400">all checklist tasks</span>
+          </h3>
+          <div class="chart-box"><canvas id="chart-tasks-daily"></canvas></div>
         </div>
+
+        <!-- One graph per checklist task (auto-generated) -->
+        <div id="per-task-charts" class="grid sm:grid-cols-2 gap-4 sm:gap-6"></div>
       </div>
 
-      <!-- Breakdowns -->
-      <div>
-        <h2 class="font-semibold mb-3 flex items-center gap-2">
-          <i data-lucide="pie-chart" class="w-5 h-5 text-brand-500"></i> Breakdowns
-        </h2>
-        <div class="grid sm:grid-cols-2 gap-4 sm:gap-6">
-          <div class="card-lg">
-            <h3 class="text-sm font-medium mb-3">Job applications by status</h3>
-            <div class="chart-box"><canvas id="chart-jobs-status"></canvas></div>
-          </div>
-          <div class="card-lg">
-            <h3 class="text-sm font-medium mb-3">DSA by difficulty</h3>
-            <div class="chart-box"><canvas id="chart-difficulty"></canvas></div>
-          </div>
-        </div>
-      </div>
     </section>
 
     <!-- SQL -->
@@ -276,6 +308,7 @@
   <script src="js/storage.js"></script>
   <script src="js/state.js"></script>
   <script src="js/streak.js"></script>
+  <script src="js/metrics.js"></script>
   <script src="js/charts.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/app.js"></script>

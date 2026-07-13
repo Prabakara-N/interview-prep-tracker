@@ -122,9 +122,62 @@
 .delete-btn:hover { color: rgb(220 38 38); background: rgb(254 226 226); }
 .dark .delete-btn:hover { background: rgb(127 29 29 / .4); }
 
-/* Heatmap */
-.heatmap-grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 12px); gap: 3px; }
-.heatmap-cell { width: 12px; height: 12px; border-radius: 2px; background: rgb(226 232 240); }
+/* Heatmap cells: colour only — sizing comes from the layout below. */
+.heatmap-cell { background: rgb(226 232 240); border-radius: 3px; }
+
+/* Heatmap — week grid (long ranges). Columns are 1fr so the grid fills the card
+   width; cells stay square (aspect-ratio) and capped so they never get silly. */
+.heatmap-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, auto);
+  grid-auto-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 4px;
+  width: 100%;
+}
+.heatmap-grid .heatmap-cell {
+  width: 100%;
+  max-width: 26px;
+  aspect-ratio: 1 / 1;
+  border-radius: 4px;
+}
+
+/* Heatmap — day strip (short ranges: one column per day, with dates) */
+.heatmap-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 6px;
+  width: 100%;
+}
+.strip-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.strip-cell {
+  width: 100%;
+  max-width: 46px;
+  aspect-ratio: 1 / 1;
+  border-radius: 7px;
+}
+.strip-dow, .strip-date {
+  font-size: 0.65rem;
+  line-height: 1;
+  color: rgb(148 163 184);
+  white-space: nowrap;
+}
+.strip-dow { font-weight: 600; }
+.strip-cell.sun { outline: 1px dashed rgb(148 163 184 / 0.5); outline-offset: 2px; }
+
+/* Too many days (or too narrow a screen) to show every date label. */
+.heatmap-strip.dense .strip-date { display: none; }
+@media (max-width: 640px) {
+  .strip-date { display: none; }
+}
 .dark .heatmap-cell { background: rgb(30 41 59); }
 .heatmap-cell.l1 { background: rgb(165 180 252); }
 .heatmap-cell.l2 { background: rgb(129 140 248); }
@@ -177,6 +230,7 @@
   color: #fff;
 }
 .check-label { flex: 1; font-size: 0.9rem; overflow-wrap: anywhere; }
+
 .checklist-item.checked .check-label {
   text-decoration: line-through;
   color: rgb(148 163 184);

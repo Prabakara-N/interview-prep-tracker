@@ -8,9 +8,9 @@ A lightweight, single-page web app to track your daily interview preparation acr
   - 🗄️ **SQL / Postgres** — topic, minutes, notes
   - 🧩 **DSA** — problem, pattern/topic, difficulty, minutes, notes
   - 💼 **Jobs** — company, role, status (Applied → OA → Interview → Offer / Rejected), location, notes
-- ✅ **Daily checklist** — check off recurring prep tasks each day (add/remove your own). Completing a task counts toward your streak.
+- ✅ **Daily checklist — one tick is all it takes.** Each task is bound to a **track** (DSA / SQL / Jobs), so ticking it **feeds its graph directly**: DSA `+1 problem`, SQL `+30 mins`, Jobs `+1 job`. Add your own tasks and pick which graph they count toward, or leave them as habit-only ticks.
 - 🔥 **Streaks** — current + longest streak (any logged activity *or* a checked task keeps it alive). **Sundays are rest days** — a missing Sunday never breaks your streak.
-- 📈 **Per-track daily graphs** — separate daily-progress charts for SQL minutes, DSA problems, jobs applied, and tasks completed, plus breakdowns (jobs by status, DSA by difficulty)
+- 📈 **Per-track daily graphs** — separate daily-progress charts for SQL minutes, DSA problems, jobs applied, and tasks completed. Each graph sums **checklist quantities + detailed tab entries**, so there's one consistent number everywhere.
 - 🟩 **Activity heatmap** with a **range filter** — last 7 / 15 / 30 days, 3 months, or 6 months. The same filter drives the daily graphs.
 - 📱 **Fully responsive** — adapts from phone to desktop (scrollable tabs, stacked cards, fluid charts)
 - 🌙 **Dark / light mode** — toggle, remembered, respects your OS preference

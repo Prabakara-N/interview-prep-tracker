@@ -1,8 +1,23 @@
-/* Chart.js rendering. Charts are destroyed/recreated on each render so they
- * stay in sync with state and adapt to theme changes. Daily-progress charts
- * use the range selected in the Activity filter (UI.getHeatmapDays()). */
+/* Chart.js rendering.
+ *
+ * Layout: "Tasks completed / day" (all tasks) first, then ONE graph per checklist
+ * task — created and removed automatically as you add/delete tasks.
+ * Window = the range selected in the Activity filter (UI.getHeatmapDays()). */
 window.Charts = (function () {
   var instances = {};
+
+  /* Colour + icon per task, keyed by its track; custom/habit tasks cycle a palette. */
+  var TRACK_STYLE = {
+    dsa:  { color: '#10b981', icon: 'puzzle',    unit: 'problems' },
+    sql:  { color: '#4f46e5', icon: 'database',  unit: 'mins' },
+    jobs: { color: '#f59e0b', icon: 'briefcase', unit: 'jobs' }
+  };
+  var PALETTE = ['#ec4899', '#0ea5e9', '#8b5cf6', '#14b8a6', '#f97316', '#64748b'];
+
+  function taskStyle(task, index) {
+    if (task.track && TRACK_STYLE[task.track]) return TRACK_STYLE[task.track];
+    return { color: PALETTE[index % PALETTE.length], icon: 'circle-check', unit: 'done' };
+  }
 
   function isDark() { return document.documentElement.classList.contains('dark'); }
   function gridColor() { return isDark() ? 'rgba(148,163,184,0.15)' : 'rgba(100,116,139,0.15)'; }
@@ -12,13 +27,11 @@ window.Charts = (function () {
     if (instances[key]) { instances[key].destroy(); delete instances[key]; }
   }
 
-  /* Window size (days) for the daily charts, from the Activity range filter. */
   function rangeDays() {
     if (window.UI && typeof window.UI.getHeatmapDays === 'function') return window.UI.getHeatmapDays();
     return 30;
   }
 
-  /* Ordered last-N day-keys. */
   function lastNDays(n) {
     var out = [];
     var d = new Date();
@@ -27,20 +40,6 @@ window.Charts = (function () {
   }
 
   function shortLabel(key) { return key.slice(5); } // MM-DD
-
-  function countByDay(arr, keys) {
-    return keys.map(function (k) { return arr.filter(function (e) { return e.date === k; }).length; });
-  }
-  function minutesByDay(arr, keys) {
-    return keys.map(function (k) {
-      return arr.filter(function (e) { return e.date === k; })
-        .reduce(function (s, e) { return s + (Number(e.minutes) || 0); }, 0);
-    });
-  }
-  function tasksByDay(state, keys) {
-    var log = (state.checklist && state.checklist.log) || {};
-    return keys.map(function (k) { return (log[k] || []).length; });
-  }
 
   function baseOpts() {
     return {
@@ -54,9 +53,22 @@ window.Charts = (function () {
     };
   }
 
-  function lineChart(canvasId, key, days, labels, data, color) {
+  function barChart(canvasId, key, labels, data, color) {
+    var el = document.getElementById(canvasId);
+    if (!el) return;
     destroy(key);
-    instances[key] = new Chart(document.getElementById(canvasId), {
+    instances[key] = new Chart(el, {
+      type: 'bar',
+      data: { labels: labels, datasets: [{ data: data, backgroundColor: color, borderRadius: 4 }] },
+      options: baseOpts()
+    });
+  }
+
+  function lineChart(canvasId, key, days, labels, data, color) {
+    var el = document.getElementById(canvasId);
+    if (!el) return;
+    destroy(key);
+    instances[key] = new Chart(el, {
       type: 'line',
       data: {
         labels: labels,
@@ -69,56 +81,30 @@ window.Charts = (function () {
     });
   }
 
-  function barChart(canvasId, key, labels, data, color) {
-    destroy(key);
-    instances[key] = new Chart(document.getElementById(canvasId), {
-      type: 'bar',
-      data: { labels: labels, datasets: [{ data: data, backgroundColor: color, borderRadius: 4 }] },
-      options: baseOpts()
-    });
-  }
-
-  /* ---- Per-track daily progress ---- */
-  function renderDailyProgress(state) {
+  function renderAll(state) {
+    if (typeof Chart === 'undefined') return;
+    var M = window.Metrics;
     var days = rangeDays();
     var keys = lastNDays(days);
     var labels = keys.map(shortLabel);
 
-    lineChart('chart-sql-daily', 'sqlDaily', days, labels, minutesByDay(state.sql, keys), '#4f46e5');   // SQL minutes/day
-    barChart('chart-dsa-daily', 'dsaDaily', labels, countByDay(state.dsa, keys), '#10b981');             // DSA problems/day
-    barChart('chart-jobs-daily', 'jobsDaily', labels, countByDay(state.jobs, keys), '#f59e0b');          // Jobs applied/day
-    lineChart('chart-tasks-daily', 'tasksDaily', days, labels, tasksByDay(state, keys), '#ec4899');      // Tasks completed/day
-  }
+    // 1. Aggregate: tasks completed per day.
+    lineChart('chart-tasks-daily', 'tasksDaily', days, labels,
+      keys.map(function (k) { return M.tasksCompleted(state, k); }), '#ec4899');
 
-  /* ---- Breakdowns ---- */
-  function renderJobsByStatus(state) {
-    var order = ['Applied', 'Online Assessment', 'Interview', 'Offer', 'Rejected'];
-    var colors = ['#6366f1', '#0ea5e9', '#f59e0b', '#10b981', '#ef4444'];
-    var counts = order.map(function (s) { return state.jobs.filter(function (e) { return e.status === s; }).length; });
-    destroy('jobsStatus');
-    instances['jobsStatus'] = new Chart(document.getElementById('chart-jobs-status'), {
-      type: 'doughnut',
-      data: { labels: order, datasets: [{ data: counts, backgroundColor: colors, borderWidth: 0 }] },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'right', labels: { color: tickColor(), boxWidth: 12 } } }
-      }
+    // 2. One chart per checklist task. Drop charts for tasks that no longer exist.
+    var tasks = (state.checklist && state.checklist.tasks) || [];
+    var live = {};
+    tasks.forEach(function (t) { live['task:' + t.id] = true; });
+    Object.keys(instances).forEach(function (k) {
+      if (k.indexOf('task:') === 0 && !live[k]) destroy(k);
+    });
+
+    tasks.forEach(function (t, i) {
+      var data = keys.map(function (k) { return M.taskDaily(state, t.id, k); });
+      barChart('chart-task-' + t.id, 'task:' + t.id, labels, data, taskStyle(t, i).color);
     });
   }
 
-  function renderDifficulty(state) {
-    var levels = ['Easy', 'Medium', 'Hard'];
-    var colors = ['#10b981', '#f59e0b', '#ef4444'];
-    var counts = levels.map(function (l) { return state.dsa.filter(function (e) { return e.difficulty === l; }).length; });
-    barChart('chart-difficulty', 'difficulty', levels, counts, colors);
-  }
-
-  function renderAll(state) {
-    if (typeof Chart === 'undefined') return;
-    renderDailyProgress(state);
-    renderJobsByStatus(state);
-    renderDifficulty(state);
-  }
-
-  return { renderAll: renderAll };
+  return { renderAll: renderAll, taskStyle: taskStyle };
 })();

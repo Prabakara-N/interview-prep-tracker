@@ -55,7 +55,8 @@
   }
 
   function wireChecklist() {
-    // Toggle a task's completion for today.
+    // Toggle a task's completion for today. Tracked tasks contribute their
+    // fixed amount (see TRACK_META) to the matching graph — no input needed.
     document.getElementById('checklist-today').addEventListener('change', function (e) {
       var cb = e.target.closest('[data-toggle]');
       if (!cb) return;
@@ -72,13 +73,13 @@
       window.UI.toast('Task removed', 'success');
     });
 
-    // Add a new daily task.
+    // Add a new daily task. It gets its own graph; a tick counts as 1/day.
     document.getElementById('form-task').addEventListener('submit', function (e) {
       e.preventDefault();
       var input = e.target.querySelector('[name=label]');
       var label = input.value.trim();
       if (!label) { window.UI.toast('Enter a task name', 'error'); return; }
-      window.AppState.addTask(label);
+      window.AppState.addTask(label, null);
       input.value = '';
       window.UI.toast('Task added ✓', 'success');
     });

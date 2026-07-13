@@ -18,23 +18,47 @@ window.AppState = (function () {
     notify();
   }
 
+  /* A task may feed a track. Ticking it records `defaultAmount` (editable) for that day,
+   * which the SQL / DSA / Jobs graphs add on top of any detailed tab entries. */
+  var TRACK_META = {
+    sql:  { unit: 'mins',     defaultAmount: 30 },
+    dsa:  { unit: 'problems', defaultAmount: 1 },
+    jobs: { unit: 'jobs',     defaultAmount: 1 }
+  };
+
   var DEFAULT_TASKS = [
-    { id: 'task-dsa', label: 'Solve DSA problems' },
-    { id: 'task-sql', label: 'SQL / Postgres practice' },
-    { id: 'task-jobs', label: 'Apply to jobs' },
-    { id: 'task-revise', label: 'Revise notes / patterns' }
+    { id: 'task-dsa',    label: 'Solve DSA problems',      track: 'dsa' },
+    { id: 'task-sql',    label: 'SQL / Postgres practice', track: 'sql' },
+    { id: 'task-jobs',   label: 'Apply to jobs',           track: 'jobs' },
+    { id: 'task-revise', label: 'Revise notes / patterns', track: null }
   ];
+
+  // Backfill tracks for tasks saved before tracks existed (e.g. already in the jsonbin).
+  var LEGACY_TRACKS = { 'task-dsa': 'dsa', 'task-sql': 'sql', 'task-jobs': 'jobs', 'task-revise': null };
+
+  function normalizeTasks(tasks) {
+    return tasks.map(function (t) {
+      if (t && t.track !== undefined) return t;
+      var track = Object.prototype.hasOwnProperty.call(LEGACY_TRACKS, t.id) ? LEGACY_TRACKS[t.id] : null;
+      return Object.assign({}, t, { track: track });
+    });
+  }
 
   function normalize(s) {
     s = s || {};
     var checklist = s.checklist || {};
+    var tasks = Array.isArray(checklist.tasks) && checklist.tasks.length
+      ? normalizeTasks(checklist.tasks)
+      : DEFAULT_TASKS.slice();
     return {
       sql: Array.isArray(s.sql) ? s.sql : [],
       dsa: Array.isArray(s.dsa) ? s.dsa : [],
       jobs: Array.isArray(s.jobs) ? s.jobs : [],
       checklist: {
-        tasks: Array.isArray(checklist.tasks) ? checklist.tasks : DEFAULT_TASKS.slice(),
-        log: checklist.log && typeof checklist.log === 'object' ? checklist.log : {}
+        tasks: tasks,
+        log: checklist.log && typeof checklist.log === 'object' ? checklist.log : {},
+        // amounts[dayKey][taskId] = quantity entered for that task that day
+        amounts: checklist.amounts && typeof checklist.amounts === 'object' ? checklist.amounts : {}
       },
       meta: s.meta || { updatedAt: 0 }
     };
@@ -64,39 +88,89 @@ window.AppState = (function () {
     persist();
   }
 
-  /* Toggle a checklist task's completion for a given day. */
+  function findTask(taskId) {
+    return _state.checklist.tasks.filter(function (t) { return t.id === taskId; })[0];
+  }
+
+  /* Toggle a checklist task's completion for a given day.
+   * Checking a tracked task seeds its default quantity; unchecking clears it. */
   function toggleTask(dateKey, taskId) {
-    var log = _state.checklist.log;
-    var dayDone = (log[dateKey] || []).slice();
+    var cl = _state.checklist;
+    var dayDone = (cl.log[dateKey] || []).slice();
     var idx = dayDone.indexOf(taskId);
-    if (idx === -1) dayDone.push(taskId);
+    var checking = idx === -1;
+
+    if (checking) dayDone.push(taskId);
     else dayDone.splice(idx, 1);
 
-    var nextLog = Object.assign({}, log);
+    var nextLog = Object.assign({}, cl.log);
     if (dayDone.length) nextLog[dateKey] = dayDone;
     else delete nextLog[dateKey];
 
-    commitChecklist({ tasks: _state.checklist.tasks, log: nextLog });
+    // Maintain the day's amounts alongside completion.
+    var dayAmounts = Object.assign({}, cl.amounts[dateKey] || {});
+    var task = findTask(taskId);
+    if (checking) {
+      if (task && task.track && dayAmounts[taskId] === undefined) {
+        dayAmounts[taskId] = TRACK_META[task.track].defaultAmount;
+      }
+    } else {
+      delete dayAmounts[taskId];
+    }
+
+    var nextAmounts = Object.assign({}, cl.amounts);
+    if (Object.keys(dayAmounts).length) nextAmounts[dateKey] = dayAmounts;
+    else delete nextAmounts[dateKey];
+
+    commitChecklist({ tasks: cl.tasks, log: nextLog, amounts: nextAmounts });
   }
 
-  function addTask(label) {
-    var task = { id: 'task-' + Math.random().toString(36).slice(2, 9), label: label };
+  /* Set the quantity a tracked task contributed on a given day. */
+  function setTaskAmount(dateKey, taskId, amount) {
+    var cl = _state.checklist;
+    var n = Number(amount);
+    if (isNaN(n) || n < 0) n = 0;
+
+    var dayAmounts = Object.assign({}, cl.amounts[dateKey] || {}, {});
+    dayAmounts[taskId] = n;
+
+    var nextAmounts = Object.assign({}, cl.amounts);
+    nextAmounts[dateKey] = dayAmounts;
+
+    commitChecklist({ tasks: cl.tasks, log: cl.log, amounts: nextAmounts });
+  }
+
+  function addTask(label, track) {
+    var task = {
+      id: 'task-' + Math.random().toString(36).slice(2, 9),
+      label: label,
+      track: TRACK_META[track] ? track : null
+    };
     commitChecklist({
       tasks: _state.checklist.tasks.concat([task]),
-      log: _state.checklist.log
+      log: _state.checklist.log,
+      amounts: _state.checklist.amounts
     });
   }
 
   function removeTask(taskId) {
-    // Drop the task and purge its completions from the log.
+    var cl = _state.checklist;
+    // Drop the task and purge its completions + amounts from history.
     var nextLog = {};
-    Object.keys(_state.checklist.log).forEach(function (day) {
-      var kept = _state.checklist.log[day].filter(function (id) { return id !== taskId; });
+    Object.keys(cl.log).forEach(function (day) {
+      var kept = cl.log[day].filter(function (id) { return id !== taskId; });
       if (kept.length) nextLog[day] = kept;
     });
+    var nextAmounts = {};
+    Object.keys(cl.amounts).forEach(function (day) {
+      var dayAmounts = Object.assign({}, cl.amounts[day]);
+      delete dayAmounts[taskId];
+      if (Object.keys(dayAmounts).length) nextAmounts[day] = dayAmounts;
+    });
     commitChecklist({
-      tasks: _state.checklist.tasks.filter(function (t) { return t.id !== taskId; }),
-      log: nextLog
+      tasks: cl.tasks.filter(function (t) { return t.id !== taskId; }),
+      log: nextLog,
+      amounts: nextAmounts
     });
   }
 
@@ -119,9 +193,11 @@ window.AppState = (function () {
     addEntry: addEntry,
     removeEntry: removeEntry,
     toggleTask: toggleTask,
+    setTaskAmount: setTaskAmount,
     addTask: addTask,
     removeTask: removeTask,
     persist: persist,
-    normalize: normalize
+    normalize: normalize,
+    TRACK_META: TRACK_META
   };
 })();

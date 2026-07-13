@@ -29,12 +29,12 @@ window.UI = (function () {
     toastTimer = setTimeout(function () { t.classList.add('hidden'); }, 2600);
   }
 
-  /* ---- Stats ---- */
+  /* ---- Stats (totals include checklist quantities, same as the graphs) ---- */
   function renderStats(state) {
     byId('stat-current-streak').textContent = window.Streak.current(state);
     byId('stat-longest-streak').textContent = window.Streak.longest(state);
-    byId('stat-total-dsa').textContent = state.dsa.length;
-    byId('stat-total-jobs').textContent = state.jobs.length;
+    byId('stat-total-dsa').textContent = window.Metrics.totalDsa(state);
+    byId('stat-total-jobs').textContent = window.Metrics.totalJobs(state);
   }
 
   /* ---- Today's checklist ---- */
@@ -66,6 +66,31 @@ window.UI = (function () {
     refreshIcons();
   }
 
+  /* ---- Per-task chart shells ----
+   * Charts.renderAll() draws into these canvases, so they must exist first.
+   * Rebuilt on every render so adding/removing a task adds/removes its graph. */
+  function renderTaskChartShells(state) {
+    var el = byId('per-task-charts');
+    if (!el) return;
+    var tasks = state.checklist.tasks;
+    if (!tasks.length) {
+      el.innerHTML = '<p class="empty">Add a checklist task above to get a graph for it.</p>';
+      return;
+    }
+    el.innerHTML = tasks.map(function (t, i) {
+      var style = window.Charts.taskStyle(t, i);
+      return '<div class="card-lg">' +
+        '<h3 class="text-sm font-medium mb-3 flex items-center gap-2">' +
+        '<i data-lucide="' + esc(style.icon) + '" class="w-4 h-4" style="color:' + esc(style.color) + '"></i>' +
+        '<span class="truncate">' + esc(t.label) + '</span>' +
+        '<span class="text-xs font-normal text-slate-400 shrink-0">/ day (' + esc(style.unit) + ')</span>' +
+        '</h3>' +
+        '<div class="chart-box"><canvas id="chart-task-' + esc(t.id) + '"></canvas></div>' +
+        '</div>';
+    }).join('');
+    refreshIcons();
+  }
+
   /* ---- Heatmap (range-filtered) ---- */
   var HEATMAP_LABELS = {
     7: 'last 7 days', 15: 'last 15 days', 30: 'last 30 days',
@@ -73,10 +98,12 @@ window.UI = (function () {
   };
   var RANGE_KEY = 'ipt-heatmap-range';
 
+  var DEFAULT_RANGE_DAYS = 7;
+
   function getHeatmapDays() {
-    var v = 182;
+    var v = DEFAULT_RANGE_DAYS;
     try { var s = localStorage.getItem(RANGE_KEY); if (s) v = parseInt(s, 10); } catch (e) {}
-    return v > 0 ? v : 182;
+    return v > 0 ? v : DEFAULT_RANGE_DAYS;
   }
 
   function setHeatmapRange(days) {
@@ -93,13 +120,44 @@ window.UI = (function () {
     return HEATMAP_LABELS[days] || ('last ' + days + ' days');
   }
 
-  function renderHeatmap(state) {
-    var counts = window.Streak.activityCounts(state);
-    var totalDays = getHeatmapDays();
+  var STRIP_MAX_DAYS = 31; // short ranges read better as one row of days than a week grid
+  var DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+  function level(count) {
+    return count === 0 ? '' : count === 1 ? 'l1' : count === 2 ? 'l2' : count === 3 ? 'l3' : 'l4';
+  }
+
+  function cellTitle(key, count) {
+    return key + ': ' + count + ' activit' + (count === 1 ? 'y' : 'ies');
+  }
+
+  /* Short range: one row, one column per day, with the date under each. */
+  function stripHtml(counts, totalDays) {
+    var today = new Date();
+    var cols = [];
+    for (var i = totalDays - 1; i >= 0; i--) {
+      var d = window.Streak.addDays(today, -i);
+      var key = window.Streak.toKey(d);
+      var c = counts[key] || 0;
+      var sun = window.Streak.isSunday(d) ? ' sun' : '';
+      cols.push(
+        '<div class="strip-col">' +
+        '<span class="strip-dow">' + DOW[d.getDay()] + '</span>' +
+        '<div class="heatmap-cell strip-cell ' + level(c) + sun + '" title="' + cellTitle(key, c) + '"></div>' +
+        '<span class="strip-date">' + key.slice(5) + '</span>' +
+        '</div>'
+      );
+    }
+    // Beyond ~15 days the per-day date labels get too cramped to read.
+    var dense = totalDays > 15 ? ' dense' : '';
+    return '<div class="heatmap-strip' + dense + '">' + cols.join('') + '</div>';
+  }
+
+  /* Long range: GitHub-style 7-row week grid. */
+  function gridHtml(counts, totalDays) {
     var today = new Date();
     var start = window.Streak.addDays(today, -(totalDays - 1));
-    // Align start to the Sunday of its week so columns are clean weeks (GitHub-style).
-    start = window.Streak.addDays(start, -start.getDay());
+    start = window.Streak.addDays(start, -start.getDay()); // back to that week's Sunday
     var windowStartKey = window.Streak.toKey(window.Streak.addDays(today, -(totalDays - 1)));
 
     var cells = [];
@@ -109,19 +167,27 @@ window.UI = (function () {
       var key = window.Streak.toKey(cursor);
       var inRange = key >= windowStartKey;
       var c = inRange ? (counts[key] || 0) : 0;
-      var level = c === 0 ? '' : c === 1 ? 'l1' : c === 2 ? 'l2' : c === 3 ? 'l3' : 'l4';
-      // Cells before the selected window (week-alignment padding) are dimmed out.
+      // Cells before the window (week-alignment padding) are dimmed.
       var pad = inRange ? '' : ' pad';
-      var title = inRange ? key + ': ' + c + ' activit' + (c === 1 ? 'y' : 'ies') : '';
-      cells.push('<div class="heatmap-cell ' + level + pad + '" title="' + title + '"></div>');
+      var title = inRange ? cellTitle(key, c) : '';
+      cells.push('<div class="heatmap-cell ' + level(c) + pad + '" title="' + title + '"></div>');
       cursor = window.Streak.addDays(cursor, 1);
     }
+    return '<div class="heatmap-grid">' + cells.join('') + '</div>';
+  }
+
+  function renderHeatmap(state) {
+    var counts = window.Streak.activityCounts(state);
+    var totalDays = getHeatmapDays();
 
     var label = byId('heatmap-label');
     if (label) label.textContent = '(' + rangeLabel(totalDays) + ')';
     var dailyLabel = byId('daily-range-label');
     if (dailyLabel) dailyLabel.textContent = '· ' + rangeLabel(totalDays);
-    byId('heatmap').innerHTML = '<div class="heatmap-grid">' + cells.join('') + '</div>';
+
+    byId('heatmap').innerHTML = totalDays <= STRIP_MAX_DAYS
+      ? stripHtml(counts, totalDays)
+      : gridHtml(counts, totalDays);
   }
 
   /* ---- Lists ---- */
@@ -193,6 +259,7 @@ window.UI = (function () {
   function renderAll(state) {
     renderStats(state);
     renderChecklist(state);
+    renderTaskChartShells(state); // must run before Charts.renderAll
     renderHeatmap(state);
     renderSqlList(state);
     renderDsaList(state);
