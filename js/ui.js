@@ -66,26 +66,102 @@ window.UI = (function () {
     refreshIcons();
   }
 
-  /* ---- Per-task chart shells ----
-   * Charts.renderAll() draws into these canvases, so they must exist first.
-   * Rebuilt on every render so adding/removing a task adds/removes its graph. */
-  function renderTaskChartShells(state) {
+  /* ---- Per-task activity grids ----
+   * One cell per day: ✓ done, ✗ missed, – on Sundays (rest days).
+   * Rebuilt on every render so adding/removing a task adds/removes its grid. */
+  function taskDayCell(state, task, d, showDate) {
+    var key = window.Streak.toKey(d);
+    var done = window.Metrics.taskDone(state, task.id, key);
+    var sunday = window.Streak.isSunday(d);
+
+    var status, icon, title;
+    if (done) {
+      status = 'done'; icon = 'check'; title = key + ' — done';
+    } else if (sunday) {
+      status = 'rest'; icon = 'minus'; title = key + ' — rest day';
+    } else {
+      status = 'miss'; icon = 'x'; title = key + ' — missed';
+    }
+
+    return '<div class="strip-col">' +
+      '<span class="strip-dow">' + DOW[d.getDay()] + '</span>' +
+      '<div class="task-cell ' + status + '" title="' + esc(title) + '">' +
+      '<i data-lucide="' + icon + '"></i></div>' +
+      (showDate ? '<span class="strip-date">' + key.slice(5) + '</span>' : '') +
+      '</div>';
+  }
+
+  /* Short range: one row of day cells with ✓/✗ icons. */
+  function taskStripHtml(state, task, totalDays) {
+    var showDate = totalDays <= 15;
+    var today = new Date();
+    var cells = [];
+    for (var n = totalDays - 1; n >= 0; n--) {
+      cells.push(taskDayCell(state, task, window.Streak.addDays(today, -n), showDate));
+    }
+    return '<div class="task-grid">' + cells.join('') + '</div>';
+  }
+
+  /* Long range: 7-row week grid of small colour-coded cells (icons don't fit). */
+  function taskWeekGridHtml(state, task, totalDays) {
+    var today = new Date();
+    var start = window.Streak.addDays(today, -(totalDays - 1));
+    start = window.Streak.addDays(start, -start.getDay());
+    var windowStartKey = window.Streak.toKey(window.Streak.addDays(today, -(totalDays - 1)));
+
+    var cells = [];
+    var cursor = new Date(start.getTime());
+    var end = window.Streak.addDays(today, 1);
+    while (cursor < end) {
+      var key = window.Streak.toKey(cursor);
+      if (key < windowStartKey) {
+        cells.push('<div class="task-cell mini pad"></div>'); // week-alignment padding
+      } else {
+        var done = window.Metrics.taskDone(state, task.id, key);
+        var status = done ? 'done' : (window.Streak.isSunday(cursor) ? 'rest' : 'miss');
+        var title = key + ' — ' + (done ? 'done' : status === 'rest' ? 'rest day' : 'missed');
+        cells.push('<div class="task-cell mini ' + status + '" title="' + esc(title) + '"></div>');
+      }
+      cursor = window.Streak.addDays(cursor, 1);
+    }
+    return '<div class="task-weekgrid">' + cells.join('') + '</div>';
+  }
+
+  function renderTaskGrids(state) {
     var el = byId('per-task-charts');
     if (!el) return;
     var tasks = state.checklist.tasks;
     if (!tasks.length) {
-      el.innerHTML = '<p class="empty">Add a checklist task above to get a graph for it.</p>';
+      el.innerHTML = '<p class="empty">Add a checklist task above to track it here.</p>';
       return;
     }
+
+    var totalDays = getHeatmapDays();
+    var today = new Date();
+
+    // Day ranges show one card per row so each day cell has room to breathe;
+    // month ranges use compact week grids, so 2-up is fine.
+    var stacked = totalDays <= STRIP_MAX_DAYS;
+    el.className = 'grid gap-4 sm:gap-6' + (stacked ? '' : ' sm:grid-cols-2');
+
     el.innerHTML = tasks.map(function (t, i) {
       var style = window.Charts.taskStyle(t, i);
+      var doneCount = 0;
+      for (var n = totalDays - 1; n >= 0; n--) {
+        var key = window.Streak.toKey(window.Streak.addDays(today, -n));
+        if (window.Metrics.taskDone(state, t.id, key)) doneCount++;
+      }
+      var body = totalDays <= STRIP_MAX_DAYS
+        ? taskStripHtml(state, t, totalDays)
+        : taskWeekGridHtml(state, t, totalDays);
+
       return '<div class="card-lg">' +
         '<h3 class="text-sm font-medium mb-3 flex items-center gap-2">' +
-        '<i data-lucide="' + esc(style.icon) + '" class="w-4 h-4" style="color:' + esc(style.color) + '"></i>' +
+        '<i data-lucide="' + esc(style.icon) + '" class="w-4 h-4 shrink-0" style="color:' + esc(style.color) + '"></i>' +
         '<span class="truncate">' + esc(t.label) + '</span>' +
-        '<span class="text-xs font-normal text-slate-400 shrink-0">/ day (' + esc(style.unit) + ')</span>' +
-        '</h3>' +
-        '<div class="chart-box"><canvas id="chart-task-' + esc(t.id) + '"></canvas></div>' +
+        '<span class="ml-auto text-xs font-normal text-slate-400 shrink-0">' +
+        doneCount + '/' + totalDays + ' days</span>' +
+        '</h3>' + body +
         '</div>';
     }).join('');
     refreshIcons();
@@ -110,7 +186,7 @@ window.UI = (function () {
     try { localStorage.setItem(RANGE_KEY, String(days)); } catch (e) {}
     var state = window.AppState.get();
     renderHeatmap(state);
-    // The same range drives the per-track daily charts.
+    renderTaskGrids(state); // per-task grids span the same range
     if (!document.querySelector('[data-panel="dashboard"]').classList.contains('hidden')) {
       window.Charts.renderAll(state);
     }
@@ -259,7 +335,7 @@ window.UI = (function () {
   function renderAll(state) {
     renderStats(state);
     renderChecklist(state);
-    renderTaskChartShells(state); // must run before Charts.renderAll
+    renderTaskGrids(state);
     renderHeatmap(state);
     renderSqlList(state);
     renderDsaList(state);

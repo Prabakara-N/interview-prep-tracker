@@ -50,13 +50,17 @@ window.Metrics = (function () {
     return (log[dayKey] || []).length;
   }
 
+  /* Was this task ticked on this day? */
+  function taskDone(state, taskId, dayKey) {
+    var log = (state.checklist && state.checklist.log) || {};
+    return (log[dayKey] || []).indexOf(taskId) !== -1;
+  }
+
   /* Daily value for ONE checklist task: its tracked amount if it has one
    * (DSA 1 / SQL 30 / Jobs 1), otherwise 1 when ticked. 0 when not done. */
   function taskDaily(state, taskId, dayKey) {
-    var cl = state.checklist || {};
-    var done = (cl.log && cl.log[dayKey]) || [];
-    if (done.indexOf(taskId) === -1) return 0;
-    var amounts = (cl.amounts && cl.amounts[dayKey]) || {};
+    if (!taskDone(state, taskId, dayKey)) return 0;
+    var amounts = (state.checklist.amounts && state.checklist.amounts[dayKey]) || {};
     var n = Number(amounts[taskId]);
     return isNaN(n) ? 1 : n;
   }
@@ -83,6 +87,7 @@ window.Metrics = (function () {
     dsaSolved: dsaSolved,
     jobsApplied: jobsApplied,
     tasksCompleted: tasksCompleted,
+    taskDone: taskDone,
     taskDaily: taskDaily,
     totalDsa: totalDsa,
     totalJobs: totalJobs

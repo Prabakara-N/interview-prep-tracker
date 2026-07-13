@@ -81,29 +81,14 @@ window.Charts = (function () {
     });
   }
 
+  /* Only one chart now: tasks completed per day. Each individual task is shown as an
+   * activity grid (✓ done / ✗ missed) rendered by UI.renderTaskGrids, not a chart. */
   function renderAll(state) {
     if (typeof Chart === 'undefined') return;
-    var M = window.Metrics;
     var days = rangeDays();
     var keys = lastNDays(days);
-    var labels = keys.map(shortLabel);
-
-    // 1. Aggregate: tasks completed per day.
-    lineChart('chart-tasks-daily', 'tasksDaily', days, labels,
-      keys.map(function (k) { return M.tasksCompleted(state, k); }), '#ec4899');
-
-    // 2. One chart per checklist task. Drop charts for tasks that no longer exist.
-    var tasks = (state.checklist && state.checklist.tasks) || [];
-    var live = {};
-    tasks.forEach(function (t) { live['task:' + t.id] = true; });
-    Object.keys(instances).forEach(function (k) {
-      if (k.indexOf('task:') === 0 && !live[k]) destroy(k);
-    });
-
-    tasks.forEach(function (t, i) {
-      var data = keys.map(function (k) { return M.taskDaily(state, t.id, k); });
-      barChart('chart-task-' + t.id, 'task:' + t.id, labels, data, taskStyle(t, i).color);
-    });
+    lineChart('chart-tasks-daily', 'tasksDaily', days, keys.map(shortLabel),
+      keys.map(function (k) { return window.Metrics.tasksCompleted(state, k); }), '#ec4899');
   }
 
   return { renderAll: renderAll, taskStyle: taskStyle };
